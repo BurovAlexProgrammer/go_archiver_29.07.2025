@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go_zipper/internal/configLoader"
 	"go_zipper/internal/handler"
+	"go_zipper/internal/repository"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,8 +14,8 @@ func main() {
 	cfg := configLoader.New()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
-
-	taskHandler := handler.NewTaskHandler()
+	taskRepository := repository.NewInMemoryTaskRepository()
+	taskHandler := handler.NewTaskHandler(taskRepository)
 	router := newRouter(taskHandler)
 	startServer(cfg, router)
 
@@ -26,6 +27,7 @@ func startServer(cfg *configLoader.AppConfig, router *gin.Engine) {
 		IdleTimeout:  cfg.HttpSrv.Timeout,
 		ReadTimeout:  cfg.HttpSrv.Timeout,
 		WriteTimeout: cfg.HttpSrv.Timeout,
+		Handler:      router,
 	}
 
 	err := srv.ListenAndServe()
@@ -40,7 +42,6 @@ func newRouter(h *handler.TaskHandler) *gin.Engine {
 	gin.SetMode(ginMode)
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
-	//router.GET("/", testHandler)
 	router.POST("/tasks/create", h.CreateTask)
 	router.POST("/tasks/:id/addFile", h.AddFileToTask)
 	router.GET("/tasks/:id/status", h.GetStatus)

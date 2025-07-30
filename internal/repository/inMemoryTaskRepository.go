@@ -6,20 +6,25 @@ import (
 )
 
 type InMemoryTaskRepository struct {
-	tasks map[string]*domain.Task
+	tasks       map[int]*domain.Task
+	idLastIndex int
 }
 
 func NewInMemoryTaskRepository() *InMemoryTaskRepository {
 	return &InMemoryTaskRepository{
-		tasks: make(map[string]*domain.Task),
+		tasks: make(map[int]*domain.Task),
 	}
 }
 
 func (r *InMemoryTaskRepository) CreateTask(task *domain.Task) {
+	r.idLastIndex++
+	task.ID = r.idLastIndex
+	task.Status = domain.Created
 	r.tasks[task.ID] = task
+
 }
 
-func (r *InMemoryTaskRepository) GetTask(id string) (*domain.Task, error) {
+func (r *InMemoryTaskRepository) GetTask(id int) (*domain.Task, error) {
 	task, exists := r.tasks[id]
 
 	if !exists {

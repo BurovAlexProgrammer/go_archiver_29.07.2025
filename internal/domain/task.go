@@ -1,14 +1,29 @@
 package domain
 
 type Task struct {
-	ID     string     `json:"id"`
+	ID     int        `json:"id"`
 	Files  []FileInfo `json:"files"`
 	Status TaskStatus `json:"status"`
 }
 
-type TaskStatus struct {
-}
+const (
+	Created TaskStatus = iota
+	Preparing
+	Finished
+)
+
+type TaskStatus int
 
 type FileInfo struct {
-	Url string
+	URL    string
+	Status string
 }
+
+type FileInfoStatus string
+
+const (
+	Available        FileInfoStatus = "Available"
+	NotAllowedFormat FileInfoStatus = "NotAllowedFormat"
+	Loaded           FileInfoStatus = "Loaded"
+	NotLoaded        FileInfoStatus = "NotLoaded"
+)

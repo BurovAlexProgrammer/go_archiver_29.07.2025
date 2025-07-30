@@ -15,13 +15,13 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/tasks/createTask": {
+        "/tasks/create": {
             "post": {
                 "responses": {
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/model.ErrorResponse"
+                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
                 }
@@ -43,7 +43,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.AddFileRequest"
+                            "$ref": "#/definitions/dto.AddFileRequest"
                         }
                     }
                 ],
@@ -51,7 +51,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/model.ErrorResponse"
+                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
                 }
@@ -72,13 +72,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.TaskStatusResponse"
+                            "$ref": "#/definitions/dto.TaskStatusResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/model.ErrorResponse"
+                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
                 }
@@ -86,7 +86,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "model.AddFileRequest": {
+        "dto.AddFileRequest": {
             "type": "object",
             "properties": {
                 "url": {
@@ -94,7 +94,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.ErrorResponse": {
+        "dto.ErrorResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -102,11 +102,12 @@ const docTemplate = `{
                 }
             }
         },
-        "model.TaskStatusResponse": {
+        "dto.TaskStatusResponse": {
             "type": "object",
             "properties": {
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "default": "Created"
                 }
             }
         }

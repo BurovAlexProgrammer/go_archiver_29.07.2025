@@ -1,18 +1,19 @@
 basePath: /
 definitions:
-  model.AddFileRequest:
+  dto.AddFileRequest:
     properties:
       url:
         type: string
     type: object
-  model.ErrorResponse:
+  dto.ErrorResponse:
     properties:
       code:
         type: integer
     type: object
-  model.TaskStatusResponse:
+  dto.TaskStatusResponse:
     properties:
       status:
+        default: Created
         type: string
     type: object
 host: localhost:8080
@@ -35,12 +36,12 @@ paths:
         name: fileInfo
         required: true
         schema:
-          $ref: '#/definitions/model.AddFileRequest'
+          $ref: '#/definitions/dto.AddFileRequest'
       responses:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/model.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
   /tasks/{id}/status:
     get:
       parameters:
@@ -53,16 +54,16 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.TaskStatusResponse'
+            $ref: '#/definitions/dto.TaskStatusResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/model.ErrorResponse'
-  /tasks/createTask:
+            $ref: '#/definitions/dto.ErrorResponse'
+  /tasks/create:
     post:
       responses:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/model.ErrorResponse'
+            $ref: '#/definitions/dto.ErrorResponse'
 swagger: "2.0"

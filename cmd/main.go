@@ -54,5 +54,6 @@ func newRouter(h *handler.TaskHandler) *gin.Engine {
 	router.POST("/tasks/create", h.CreateTask)
 	router.POST("/tasks/:id/addFile", h.AddFileToTask)
 	router.GET("/tasks/:id/status", h.GetStatus)
+	router.GET("/tasks/:id/downloadZip", h.DownloadZip)
 	return router
 }

@@ -1,9 +1,10 @@
 package domain
 
 type Task struct {
-	ID     int        `json:"id"`
-	Files  []FileInfo `json:"files"`
-	Status TaskStatus `json:"status"`
+	ID      int        `json:"id"`
+	Files   []FileInfo `json:"files"`
+	Status  TaskStatus `json:"status"`
+	ZipData []int64    `json:"zipData"`
 }
 
 const (
@@ -16,7 +17,7 @@ type TaskStatus int
 
 type FileInfo struct {
 	URL    string
-	Status string
+	Status FileInfoStatus
 }
 
 type FileInfoStatus string

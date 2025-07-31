@@ -1,13 +1,18 @@
 package handler
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"go_zipper/internal/domain"
 	"go_zipper/internal/handler/dto"
 	"go_zipper/internal/repository"
+	"io"
 	"log/slog"
 	"net/http"
+	"path"
+	"slices"
 	"strconv"
 )
 
@@ -68,18 +73,24 @@ func (h TaskHandler) AddFileToTask(ctx *gin.Context) {
 	}
 
 	contentType := resp.Header.Get("Content-Type")
-	allowedTypes := map[string]bool{
-		"application/pdf": true,
-		"image/jpeg":      true,
+	allowedTypes := []string{
+		"application/pdf",
+		"image/jpeg",
 	}
 
-	if !allowedTypes[contentType] {
+	if slices.Contains(allowedTypes, contentType) == false {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: file type not allowed (only .pdf or .jpeg)"})
 		return
 	}
 
 	if len(task.Files) >= 3 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: task already has 3 files"})
+		return
+	}
+
+	isAlreadyExist := slices.IndexFunc(task.Files, func(f domain.FileInfo) bool { return f.URL == fileReqData.URL }) != -1
+	if isAlreadyExist {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: file URL already added"})
 		return
 	}
 
@@ -107,7 +118,56 @@ func (h TaskHandler) GetStatus(ctx *gin.Context) {
 		return
 	}
 
+	if len(task.Files) >= 2 {
+		h.zipTask(ctx, task)
+	}
+
 	ctx.IndentedJSON(http.StatusOK, task)
+}
+
+func (h TaskHandler) zipTask(ctx *gin.Context, task *domain.Task) {
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+
+	for i, file := range task.Files {
+		resp, err := http.Get(file.URL)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			task.Files[i].Status = domain.NotLoaded
+			slog.Warn("TaskHandler.zipTask: cannot download file", "url", file.URL, "err", err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		filename := path.Base(resp.Request.URL.Path)
+		if filename == "/" || filename == "" {
+			filename = "file_" + strconv.Itoa(i)
+		}
+
+		fw, err := zipWriter.Create(filename)
+		if err != nil {
+			slog.Warn("TaskHandler.zipTask: cannot create zip entry", "file", filename, "err", err)
+			continue
+		}
+
+		b := resp.Body
+		written, err := io.Copy(fw, b)
+		slog.Info("TaskHandler.zipTask: archived " + strconv.Itoa(int(written)) + " bytes")
+		if err != nil {
+			slog.Warn("TaskHandler.zipTask: error writing to zip", "file", filename, "err", err)
+			continue
+		}
+	}
+	err := zipWriter.Close()
+	if err != nil {
+		msg := "TaskHandler.zipTask: cannot close zipWriter. " + err.Error()
+		slog.Error(msg)
+		ctx.JSON(http.StatusBadRequest, msg)
+		return
+	}
+
+	ctx.Header("Content-Type", "application/zip")
+	ctx.Header("Content-Disposition", "attachment; filename=zip_task_"+strconv.Itoa(task.ID)+".zip")
+	ctx.Data(http.StatusOK, "application/zip", buf.Bytes())
 }
 
 func (h TaskHandler) GetIdParam(ctx *gin.Context) (int, error) {

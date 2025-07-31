@@ -1,10 +1,12 @@
 package domain
 
+import "go_zipper/internal/domain/fileInfo"
+
 type Task struct {
-	ID      int        `json:"id"`
-	Files   []FileInfo `json:"files"`
-	Status  TaskStatus `json:"status"`
-	ZipData []int64    `json:"zipData"`
+	ID      int                 `json:"id"`
+	Files   []fileInfo.FileInfo `json:"files"`
+	Status  TaskStatus          `json:"status"`
+	ZipData []int64             `json:"zipData"`
 }
 
 const (
@@ -14,17 +16,3 @@ const (
 )
 
 type TaskStatus int
-
-type FileInfo struct {
-	URL    string
-	Status FileInfoStatus
-}
-
-type FileInfoStatus string
-
-const (
-	Available        FileInfoStatus = "Available"
-	NotAllowedFormat FileInfoStatus = "NotAllowedFormat"
-	Loaded           FileInfoStatus = "Loaded"
-	NotLoaded        FileInfoStatus = "NotLoaded"
-)

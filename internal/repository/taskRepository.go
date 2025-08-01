@@ -1,9 +1,12 @@
 package repository
 
-import "go_zipper/internal/domain"
+import (
+	"go_zipper/internal/domain/task"
+)
 
 type TaskRepository interface {
-	CreateTask(task *domain.Task)
-	GetTask(id int) (*domain.Task, error)
-	UpdateTask(task *domain.Task)
+	CreateTask(task *task.Task)
+	GetTask(id int) (*task.Task, error)
+	UpdateTask(task *task.Task)
+	ActiveTaskCount() int
 }

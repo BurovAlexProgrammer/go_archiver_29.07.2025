@@ -1,16 +1,16 @@
 package fileInfo
 
 const (
-	Available        FileInfoStatus = "Available"
-	NotAvailable     FileInfoStatus = "NotAvailable"
-	NotAllowedFormat FileInfoStatus = "NotAllowedFormat"
-	Loaded           FileInfoStatus = "Loaded"
-	NotLoaded        FileInfoStatus = "NotLoaded"
+	Available        Status = "Available"
+	NotAvailable     Status = "NotAvailable"
+	NotAllowedFormat Status = "NotAllowedFormat"
+	Loaded           Status = "Loaded"
+	NotLoaded        Status = "NotLoaded"
 )
 
 type FileInfo struct {
 	URL    string
-	Status FileInfoStatus
+	Status Status
 }
 
-type FileInfoStatus string
+type Status string

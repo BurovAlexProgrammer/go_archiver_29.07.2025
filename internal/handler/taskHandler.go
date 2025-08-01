@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"go_zipper/internal/domain"
 	"go_zipper/internal/domain/fileInfo"
+	"go_zipper/internal/domain/task"
 	"go_zipper/internal/handler/dto"
 	"go_zipper/internal/repository"
 	"io"
@@ -30,16 +30,13 @@ func NewTaskHandler(taskRepository repository.TaskRepository) *TaskHandler {
 // @Failure 400 {object} dto.ErrorResponse
 // @Router /tasks/create [post]
 func (h TaskHandler) CreateTask(ctx *gin.Context) {
-
-	task := &domain.Task{}
-	//err := ctx.ShouldBindJSON(task)
-	//if err != nil {
-	//	msg := "TaskHandler.CreateTask: Cannot parse task json"
-	//	slog.Error(msg)
-	//	ctx.String(http.StatusBadRequest, msg)
-	//}
-	h.taskRepository.CreateTask(task)
-	ctx.IndentedJSON(http.StatusOK, task)
+	if h.taskRepository.ActiveTaskCount() >= 3 {
+		ctx.JSON(http.StatusBadRequest, "TaskHandler.CreateTask: server is busy now. Try later")
+		return
+	}
+	newTask := &task.Task{}
+	h.taskRepository.CreateTask(newTask)
+	ctx.IndentedJSON(http.StatusOK, newTask)
 }
 
 // AddFileToTask godoc
@@ -54,7 +51,7 @@ func (h TaskHandler) AddFileToTask(ctx *gin.Context) {
 		return
 	}
 
-	task, err := h.taskRepository.GetTask(taskId)
+	tsk, err := h.taskRepository.GetTask(taskId)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, "TaskHandler.AddFileToTask: cannot find task")
 		slog.Error(err.Error())
@@ -71,7 +68,7 @@ func (h TaskHandler) AddFileToTask(ctx *gin.Context) {
 	resp, err := http.Head(fileReqData.URL)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		newFileInfo := fileInfo.FileInfo{URL: fileReqData.URL, Status: fileInfo.NotAvailable}
-		task.Files = append(task.Files, newFileInfo)
+		tsk.Files = append(tsk.Files, newFileInfo)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: unable to access file throw URL:" + fileReqData.URL})
 		return
 	}
@@ -84,24 +81,24 @@ func (h TaskHandler) AddFileToTask(ctx *gin.Context) {
 
 	if slices.Contains(allowedTypes, contentType) == false {
 		newFileInfo := fileInfo.FileInfo{URL: fileReqData.URL, Status: fileInfo.NotAllowedFormat}
-		task.Files = append(task.Files, newFileInfo)
+		tsk.Files = append(tsk.Files, newFileInfo)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: file type not allowed (only .pdf or .jpeg)"})
 		return
 	}
 
-	if len(task.Files) >= 3 {
+	if len(tsk.Files) >= 3 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: task already has 3 files"})
 		return
 	}
 
-	isAlreadyExist := slices.IndexFunc(task.Files, func(f fileInfo.FileInfo) bool { return f.URL == fileReqData.URL }) != -1
+	isAlreadyExist := slices.IndexFunc(tsk.Files, func(f fileInfo.FileInfo) bool { return f.URL == fileReqData.URL }) != -1
 	if isAlreadyExist {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: file URL already added"})
 		return
 	}
 
 	newFileInfo := fileInfo.FileInfo{URL: fileReqData.URL, Status: fileInfo.Available}
-	task.Files = append(task.Files, newFileInfo)
+	tsk.Files = append(tsk.Files, newFileInfo)
 	ctx.JSON(http.StatusOK, gin.H{"message": "TaskHandler.AddFileToTask: file URL [" + newFileInfo.URL + "] added successfully"})
 }
 
@@ -117,18 +114,18 @@ func (h TaskHandler) GetStatus(ctx *gin.Context) {
 		return
 	}
 
-	task, err := h.taskRepository.GetTask(taskId)
+	tks, err := h.taskRepository.GetTask(taskId)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, "TaskHandler.AddFileToTask: cannot find task")
 		slog.Error(err.Error())
 		return
 	}
 
-	if len(task.Files) >= 3 {
-		h.downloadPage(ctx, task)
+	if len(tks.Files) >= 3 {
+		h.downloadPage(ctx, tks)
 	}
 
-	ctx.IndentedJSON(http.StatusOK, task)
+	ctx.IndentedJSON(http.StatusOK, tks)
 }
 
 func (h TaskHandler) DownloadZip(ctx *gin.Context) {
@@ -138,16 +135,22 @@ func (h TaskHandler) DownloadZip(ctx *gin.Context) {
 		return
 	}
 
-	task, err := h.taskRepository.GetTask(taskId)
+	tsk, err := h.taskRepository.GetTask(taskId)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "TaskHandler.DownloadZip: task not found"})
 		return
 	}
 
-	h.zipTask(ctx, task)
+	if tsk.Status != task.Archived {
+		h.zipTask(ctx, tsk)
+	}
+
+	ctx.Header("Content-Type", "application/zip")
+	ctx.Header("Content-Disposition", "attachment; filename=zip_task_"+strconv.Itoa(tsk.ID)+".zip")
+	ctx.Data(http.StatusOK, "application/zip", tsk.ZipData)
 }
 
-func (h TaskHandler) downloadPage(ctx *gin.Context, task *domain.Task) {
+func (h TaskHandler) downloadPage(ctx *gin.Context, task *task.Task) {
 	html := fmt.Sprintf(`
 		<html>
 		<head>
@@ -174,11 +177,11 @@ func (h TaskHandler) downloadPage(ctx *gin.Context, task *domain.Task) {
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 }
 
-func (h TaskHandler) zipTask(ctx *gin.Context, task *domain.Task) {
+func (h TaskHandler) zipTask(ctx *gin.Context, t *task.Task) {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
-	for i, file := range task.Files {
+	for i, file := range t.Files {
 		if file.Status != fileInfo.Available {
 			slog.Warn("TaskHandler.zipTask: skipped downloading file", "url", file.URL)
 			continue
@@ -186,7 +189,7 @@ func (h TaskHandler) zipTask(ctx *gin.Context, task *domain.Task) {
 
 		resp, err := http.Get(file.URL)
 		if err != nil || resp.StatusCode != http.StatusOK {
-			task.Files[i].Status = fileInfo.NotLoaded
+			t.Files[i].Status = fileInfo.NotLoaded
 			slog.Warn("TaskHandler.zipTask: cannot download file", "url", file.URL, "err", err)
 			continue
 		}
@@ -210,7 +213,7 @@ func (h TaskHandler) zipTask(ctx *gin.Context, task *domain.Task) {
 			slog.Warn("TaskHandler.zipTask: error writing to zip", "file", filename, "err", err)
 			continue
 		}
-		task.Files[i].Status = fileInfo.Loaded
+		t.Files[i].Status = fileInfo.Loaded
 	}
 	err := zipWriter.Close()
 	if err != nil {
@@ -220,9 +223,8 @@ func (h TaskHandler) zipTask(ctx *gin.Context, task *domain.Task) {
 		return
 	}
 
-	ctx.Header("Content-Type", "application/zip")
-	ctx.Header("Content-Disposition", "attachment; filename=zip_task_"+strconv.Itoa(task.ID)+".zip")
-	ctx.Data(http.StatusOK, "application/zip", buf.Bytes())
+	t.ZipData = buf.Bytes()
+	t.Status = task.Archived
 }
 
 func (h TaskHandler) getIdParam(ctx *gin.Context) (int, error) {

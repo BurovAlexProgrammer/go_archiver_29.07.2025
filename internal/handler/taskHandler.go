@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go_zipper/internal/configLoader"
 	"go_zipper/internal/domain/fileInfo"
 	"go_zipper/internal/domain/task"
 	"go_zipper/internal/handler/dto"
@@ -20,17 +21,18 @@ import (
 
 type TaskHandler struct {
 	taskRepository repository.TaskRepository
+	cfg            *configLoader.AppConfig
 }
 
-func NewTaskHandler(taskRepository repository.TaskRepository) *TaskHandler {
-	return &TaskHandler{taskRepository: taskRepository}
+func NewTaskHandler(cfg *configLoader.AppConfig, taskRepository repository.TaskRepository) *TaskHandler {
+	return &TaskHandler{taskRepository: taskRepository, cfg: cfg}
 }
 
 // CreateTask godoc
 // @Failure 400 {object} dto.ErrorResponse
 // @Router /tasks/create [post]
 func (h TaskHandler) CreateTask(ctx *gin.Context) {
-	if h.taskRepository.ActiveTaskCount() >= 3 {
+	if h.taskRepository.ActiveTaskCount() >= h.cfg.MaxTaskCount {
 		ctx.JSON(http.StatusBadRequest, "TaskHandler.CreateTask: server is busy now. Try later")
 		return
 	}
@@ -86,7 +88,7 @@ func (h TaskHandler) AddFileToTask(ctx *gin.Context) {
 		return
 	}
 
-	if len(tsk.Files) >= 3 {
+	if len(tsk.Files) >= h.cfg.MaxFilesCount {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "TaskHandler.AddFileToTask: task already has 3 files"})
 		return
 	}

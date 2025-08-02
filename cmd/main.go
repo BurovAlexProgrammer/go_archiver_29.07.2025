@@ -23,7 +23,7 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 	taskRepository := repository.NewInMemoryTaskRepository()
-	taskHandler := handler.NewTaskHandler(taskRepository)
+	taskHandler := handler.NewTaskHandler(cfg, taskRepository)
 	router := newRouter(taskHandler)
 	startServer(cfg, router)
 

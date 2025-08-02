@@ -1,3 +1,5 @@
+max_files_count: 3
+max_task_count: 3
 http_server:
   address: "0.0.0.0:8080"
   timeout: 3s

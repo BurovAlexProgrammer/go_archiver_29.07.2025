@@ -15,8 +15,10 @@ var (
 )
 
 type AppConfig struct {
-	HttpSrv HttpServer `yaml:"http_server"`
-	Logger  LoggerConfig
+	MaxTaskCount  int        `yaml:"max_task_count"`
+	MaxFilesCount int        `yaml:"max_files_count"`
+	HttpSrv       HttpServer `yaml:"http_server"`
+	Logger        LoggerConfig
 }
 
 type HttpServer struct {
